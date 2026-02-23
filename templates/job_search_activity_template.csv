@@ -1,0 +1,9 @@
+Date,Company Name,Job Title,Activity Type,Status,Job Description URL,Contact Person,Contact Method,Notes,Source,Location,Salary Range
+2024-01-15,Acme Corp,Software Engineer,application,application,https://example.com/job/123,John Doe,Email,Applied through company website,company_website,San Francisco CA,"$120,000 - $150,000"
+2024-01-16,Tech Startup,Senior Developer,interview,hr_screen,https://example.com/job/456,Jane Smith,Phone,First round interview scheduled,linkedin,Remote,"$130,000 - $160,000"
+2024-01-17,Big Corp,Product Manager,application,application,https://example.com/job/789,,Email,Submitted application,indeed,New York NY,"$140,000 - $170,000"
+2024-01-18,Startup Inc,Frontend Developer,networking,,,Mike Johnson,LinkedIn,Met at networking event,other,San Francisco CA,
+2024-01-19,Enterprise Co,Backend Engineer,interview,final_round,https://example.com/job/101,Sarah Lee,Video Call,Final round interview,company_website,Remote,"$150,000 - $180,000"
+
+
+

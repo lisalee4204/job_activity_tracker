@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Job Application Tracker (Demo)</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="header">
+    <div>
+      <h1>Job Application Tracker</h1>
+      <p class="sub">Open-and-go demo: data, charts, and tables are preloaded.</p>
+    </div>
+    <div class="actions">
+      <button id="resetBtn" class="btn secondary" title="Reload the demo dataset">Reset to Demo</button>
+      <button id="exportBtn" class="btn" title="Download your current data as JSON">Export JSON</button>
+      <label class="btn secondary file">
+        Import JSON
+        <input id="importFile" type="file" accept="application/json" />
+      </label>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card kpis">
+      <div class="kpi">
+        <div class="kpi-label">Jobs Applied</div>
+        <div class="kpi-value" id="kpiApplied">0</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Scheduled Interviews</div>
+        <div class="kpi-value" id="kpiInterviews">0</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Offers</div>
+        <div class="kpi-value" id="kpiOffers">0</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Rejections</div>
+        <div class="kpi-value" id="kpiRejected">0</div>
+      </div>
+    </section>
+
+    <section class="card chart">
+      <h2>Application Status</h2>
+      <canvas id="statusChart" height="140"></canvas>
+    </section>
+
+    <section class="card chart">
+      <h2>Offers (Salary)</h2>
+      <canvas id="offerChart" height="140"></canvas>
+    </section>
+
+    <section class="card table">
+      <div class="table-head">
+        <h2>Applications</h2>
+        <button id="addAppBtn" class="btn small">Add</button>
+      </div>
+      <div class="table-wrap">
+        <table id="appsTable"></table>
+      </div>
+    </section>
+
+    <section class="card table">
+      <div class="table-head">
+        <h2>Interviews</h2>
+        <button id="addInterviewBtn" class="btn small">Add</button>
+      </div>
+      <div class="table-wrap">
+        <table id="interviewsTable"></table>
+      </div>
+    </section>
+
+    <section class="card table">
+      <div class="table-head">
+        <h2>Offers</h2>
+        <button id="addOfferBtn" class="btn small">Add</button>
+      </div>
+      <div class="table-wrap">
+        <table id="offersTable"></table>
+      </div>
+    </section>
+
+    <section class="card tips">
+      <h2>How to use</h2>
+      <ol>
+        <li>Edit any cell inline — your changes save automatically in your browser.</li>
+        <li>Charts update instantly from the tables.</li>
+        <li>Use Export/Import to move data between computers.</li>
+      </ol>
+      <p class="note">Tip: If you want a “client-ready” hosted version, you can deploy this folder to Netlify/Vercel/GitHub Pages in minutes.</p>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

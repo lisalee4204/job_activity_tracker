@@ -1,0 +1,32 @@
+{
+  "name": "job-activity-tracker-mobile",
+  "version": "1.0.0",
+  "description": "Job Search Activity Tracker - Mobile App",
+  "main": "index.js",
+  "scripts": {
+    "build": "cd ../frontend && npm run build",
+    "sync": "npx cap sync",
+    "open:android": "npx cap open android",
+    "open:ios": "npx cap open ios",
+    "run:android": "npx cap run android",
+    "run:ios": "npx cap run ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^5.5.1",
+    "@capacitor/app": "^5.0.6",
+    "@capacitor/core": "^5.5.1",
+    "@capacitor/haptics": "^5.0.6",
+    "@capacitor/keyboard": "^5.0.6",
+    "@capacitor/status-bar": "^5.0.6"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^5.5.1"
+  }
+}
+
+
+
+
+
+
+
