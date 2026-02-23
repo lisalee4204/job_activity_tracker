@@ -9,7 +9,7 @@ import { ActivityTable } from '../components/activities/ActivityTable'
 import { WeeklySummaryCard } from '../components/analytics/WeeklySummaryCard'
 import { GmailConnectionCard } from '../components/gmail/GmailConnectionCard'
 import { useToast } from '../components/ui/toast'
-import { LogOut, Plus, Settings, Sparkles, Trash2 } from 'lucide-react'
+import { BarChart2, LogOut, Plus, Settings, Sparkles, Trash2 } from 'lucide-react'
 
 export function DashboardPage() {
   const { user, logout } = useAuthStore()
@@ -134,6 +134,10 @@ export function DashboardPage() {
             <Button onClick={() => setActivityDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Activity
+            </Button>
+            <Button variant="outline" onClick={() => window.location.href = '/summary'}>
+              <BarChart2 className="h-4 w-4 mr-2" />
+              Summary
             </Button>
             <Button variant="outline" onClick={() => window.location.href = '/settings'}>
               <Settings className="h-4 w-4 mr-2" />

@@ -230,6 +230,55 @@ export const analyticsApi = {
     if (error) throw error
     return data.insights as AIInsight[]
   },
+
+  async getOverallStats() {
+    const { data, error } = await supabase
+      .from('job_search_activities')
+      .select('activity_type, status, company_name, date')
+      .is('deleted_at', null)
+
+    if (error) throw error
+
+    const activities = data || []
+    const uniqueCompanies = new Set(activities.map((a) => a.company_name)).size
+    const activityBreakdown = activities.reduce((acc, a) => {
+      acc[a.activity_type] = (acc[a.activity_type] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+
+    const statusBreakdown = activities
+      .filter((a) => a.status)
+      .reduce((acc, a) => {
+        acc[a.status!] = (acc[a.status!] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
+
+    return {
+      totalActivities: activities.length,
+      uniqueCompanies,
+      totalInterviews: activityBreakdown['interview'] || 0,
+      totalApplications: activityBreakdown['application'] || 0,
+      totalOffers: statusBreakdown['offer'] || 0,
+      totalRejected: statusBreakdown['rejected'] || 0,
+      activityBreakdown,
+      statusBreakdown,
+    }
+  },
+
+  async getHistoricalWeeklySummaries(weeksBack = 8) {
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() - weeksBack * 7)
+
+    const { data, error } = await supabase
+      .from('weekly_summaries')
+      .select('*')
+      .gte('week_start', cutoffDate.toISOString().split('T')[0])
+      .order('week_start', { ascending: false })
+      .limit(weeksBack)
+
+    if (error) throw error
+    return data || []
+  },
 }
 
 // Demo Data API

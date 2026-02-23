@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthPage } from './pages/AuthPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { SummaryPage } from './pages/SummaryPage'
 import { useAuthStore } from './store/authStore'
 import { useEffect } from 'react'
 import { supabase } from './lib/supabase'
@@ -53,6 +54,10 @@ function App() {
         <Route
           path="/settings"
           element={user ? <SettingsPage /> : <Navigate to="/auth" replace />}
+        />
+        <Route
+          path="/summary"
+          element={user ? <SummaryPage /> : <Navigate to="/auth" replace />}
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
