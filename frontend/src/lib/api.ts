@@ -210,7 +210,7 @@ export const gmailApi = {
 
     const { data, error } = await supabase
       .from('gmail_tokens')
-      .select('id, expires_at')
+      .select('id')
       .eq('user_id', user.id)
       .maybeSingle()
 
@@ -218,8 +218,8 @@ export const gmailApi = {
       console.error('Gmail connection check error:', error)
       return false
     }
-    if (!data) return false
-    return new Date(data.expires_at) > new Date()
+    // Return true as long as a token row exists — fetch-gmail-emails handles refresh automatically
+    return !!data
   },
 }
 

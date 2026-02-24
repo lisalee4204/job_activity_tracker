@@ -195,6 +195,14 @@ async function refreshGmailToken(
     throw new Error('Gmail OAuth credentials not configured')
   }
 
+  // Decrypt refresh token before sending to Google
+  let decryptedRefreshToken: string
+  try {
+    decryptedRefreshToken = await decryptToken(tokenData.refresh_token)
+  } catch (error) {
+    throw new Error('Failed to decrypt refresh token. Please reconnect Gmail.')
+  }
+
   // Exchange refresh token for new access token
   const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -204,7 +212,7 @@ async function refreshGmailToken(
     body: new URLSearchParams({
       client_id: gmailClientId,
       client_secret: gmailClientSecret,
-      refresh_token: tokenData.refresh_token,
+      refresh_token: decryptedRefreshToken,
       grant_type: 'refresh_token',
     }),
   })
@@ -212,12 +220,12 @@ async function refreshGmailToken(
   if (!refreshResponse.ok) {
     const errorText = await refreshResponse.text()
     console.error('Token refresh failed:', errorText)
-    
+
     // If refresh token is invalid, user needs to reconnect
     if (refreshResponse.status === 400) {
       throw new Error('Refresh token expired. Please reconnect Gmail.')
     }
-    
+
     throw new Error(`Token refresh failed: ${errorText}`)
   }
 
@@ -227,16 +235,18 @@ async function refreshGmailToken(
   const expiresAt = new Date()
   expiresAt.setSeconds(expiresAt.getSeconds() + (newTokens.expires_in || 3600))
 
+  // Encrypt new tokens before storing
+  const encryptedNewAccessToken = await encryptToken(newTokens.access_token)
+  const encryptedNewRefreshToken = newTokens.refresh_token
+    ? await encryptToken(newTokens.refresh_token)
+    : tokenData.refresh_token // Keep existing encrypted refresh token if no new one
+
   // Update tokens in database
   const updateData: any = {
-    access_token: newTokens.access_token,
+    access_token: encryptedNewAccessToken,
+    refresh_token: encryptedNewRefreshToken,
     expires_at: expiresAt.toISOString(),
     updated_at: new Date().toISOString(),
-  }
-
-  // If Google returned a new refresh token, update it
-  if (newTokens.refresh_token) {
-    updateData.refresh_token = newTokens.refresh_token
   }
 
   const { error: updateError } = await supabaseClient
@@ -431,7 +441,6 @@ serve(async (req) => {
     )
 
     // Parse emails with AI
-    const parseEmailFunction = supabaseClient.functions.invoke('parse-email')
     const parsedActivities = []
 
     let failedParsing = 0
