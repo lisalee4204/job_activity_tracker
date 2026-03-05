@@ -278,6 +278,11 @@ serve(async (req) => {
       throw new Error('Unauthorized')
     }
 
+    // Validate required secrets up front
+    if (!Deno.env.get('GMAIL_CLIENT_ID') || !Deno.env.get('GMAIL_CLIENT_SECRET')) {
+      throw new Error('Gmail OAuth credentials not configured. Set GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET in Supabase Edge Function secrets.')
+    }
+
     const { daysAgo = 7, incremental = false } = await req.json()  // Default to full import
 
     // Get last import date for incremental imports
@@ -527,7 +532,7 @@ serve(async (req) => {
       }
     }
 
-    // Log import history
+    // Log import history (non-fatal — don't let a logging failure break the response)
     await supabaseClient.from('email_import_history').insert({
       user_id: user.id,
       emails_processed: emails.length,
@@ -537,6 +542,8 @@ serve(async (req) => {
       date_range_start: startDate.toISOString().split('T')[0],
       date_range_end: endDate.toISOString().split('T')[0],
       status: 'completed',
+    }).catch(err => {
+      console.error('Failed to log import history (non-fatal):', err)
     })
 
     return new Response(
