@@ -402,36 +402,40 @@ serve(async (req) => {
     const messageIds = searchData.messages?.map((m: any) => m.id) || []
 
     // Fetch full email content with rate limiting
-    const emails = await Promise.all(
+    const emails = (await Promise.all(
       messageIds.slice(0, 50).map(async (id: string) => {
         await rateLimiter.waitIfNeeded()
-        
-        return withRetry(async () => {
-          const emailResponse = await fetch(
-            `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
-            {
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-              },
+
+        try {
+          return await withRetry(async () => {
+            const emailResponse = await fetch(
+              `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
+              {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                },
+              }
+            )
+
+            if (!emailResponse.ok) {
+              const error: any = new Error(`Failed to fetch email ${id}`)
+              error.status = emailResponse.status
+              throw error
             }
-          )
-          
-          if (!emailResponse.ok) {
-            const error: any = new Error(`Failed to fetch email ${id}`)
-            error.status = emailResponse.status
-            throw error
-          }
-          
-          return emailResponse.json()
-        }, {
-          maxRetries: 2,
-          initialDelay: 1000,
-        })
+
+            return emailResponse.json()
+          }, {
+            maxRetries: 2,
+            initialDelay: 1000,
+          })
+        } catch (err) {
+          console.error(`Skipping email ${id}:`, err)
+          return null
+        }
       })
-    )
+    )).filter(Boolean)
 
     // Parse emails with AI
-    const parseEmailFunction = supabaseClient.functions.invoke('parse-email')
     const parsedActivities = []
 
     let failedParsing = 0
