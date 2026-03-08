@@ -81,6 +81,9 @@ ehthumbs.db
 *.zip
 *.jar
 
+# Google OAuth secrets (never commit these!)
+client_secret*.json
+
 # Keep example env files
 !.env.example
 !*.env.example
