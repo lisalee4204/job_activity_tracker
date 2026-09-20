@@ -1,5 +1,7 @@
 # Job Search Activity Tracker
 
+> **This project is not deployed and has no users. Read [STATUS.md](STATUS.md) first** — it covers what works, what blocks shipping (Google restricted-scope verification, 7-day token expiry in Testing mode), and how this relates to the tracker already selling on Etsy. The other markdown files at the repo root are debugging notes from early 2026 and are largely superseded.
+
 A comprehensive job search tracking application that helps job seekers log, monitor, and analyze their job search activities while staying compliant for unemployment compensation claims audits.
 
 ## 🚀 Features
