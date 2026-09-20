@@ -1,86 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-// Encryption utilities (inline for Deno edge functions)
-const ALGORITHM = 'AES-GCM'
-const KEY_LENGTH = 256
-const IV_LENGTH = 12
-
-function getEncryptionKey(): string {
-  const key = Deno.env.get('ENCRYPTION_KEY')
-  if (!key) {
-    console.warn('ENCRYPTION_KEY not set, tokens will not be encrypted')
-    return 'default-key-change-in-production-32-chars!!'
-  }
-  return key
-}
-
-async function deriveKey(password: string): Promise<CryptoKey> {
-  const encoder = new TextEncoder()
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits', 'deriveKey']
-  )
-
-  return crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: encoder.encode('gmail-token-salt'),
-      iterations: 100000,
-      hash: 'SHA-256',
-    },
-    keyMaterial,
-    {
-      name: ALGORITHM,
-      length: KEY_LENGTH,
-    },
-    false,
-    ['encrypt', 'decrypt']
-  )
-}
-
-async function decryptToken(encryptedToken: string): Promise<string> {
-  try {
-    const key = await deriveKey(getEncryptionKey())
-    const combined = Uint8Array.from(atob(encryptedToken), c => c.charCodeAt(0))
-    const iv = combined.slice(0, IV_LENGTH)
-    const encrypted = combined.slice(IV_LENGTH)
-    const decrypted = await crypto.subtle.decrypt(
-      { name: ALGORITHM, iv: iv },
-      key,
-      encrypted
-    )
-    const decoder = new TextDecoder()
-    return decoder.decode(decrypted)
-  } catch (error) {
-    console.error('Decryption error:', error)
-    throw new Error('Failed to decrypt token')
-  }
-}
-
-async function encryptToken(token: string): Promise<string> {
-  try {
-    const key = await deriveKey(getEncryptionKey())
-    const encoder = new TextEncoder()
-    const data = encoder.encode(token)
-    const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH))
-    const encrypted = await crypto.subtle.encrypt(
-      { name: ALGORITHM, iv: iv },
-      key,
-      data
-    )
-    const combined = new Uint8Array(iv.length + encrypted.byteLength)
-    combined.set(iv)
-    combined.set(new Uint8Array(encrypted), iv.length)
-    return btoa(String.fromCharCode(...combined))
-  } catch (error) {
-    console.error('Encryption error:', error)
-    throw new Error('Failed to encrypt token')
-  }
-}
+import { decryptToken } from '../_shared/encryption.ts'
+import { refreshGmailToken } from '../_shared/gmail-token.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -168,92 +89,6 @@ async function withRetry<T>(
   throw lastError
 }
 
-// Token refresh function (inline for Deno edge functions)
-async function refreshGmailToken(
-  supabaseClient: any,
-  userId: string
-): Promise<{ access_token: string; expires_at: Date }> {
-  // Get current tokens
-  const { data: tokenData, error: tokenError } = await supabaseClient
-    .from('gmail_tokens')
-    .select('*')
-    .eq('user_id', userId)
-    .single()
-
-  if (tokenError || !tokenData) {
-    throw new Error('Gmail not connected')
-  }
-
-  if (!tokenData.refresh_token) {
-    throw new Error('No refresh token available. Please reconnect Gmail.')
-  }
-
-  const gmailClientId = Deno.env.get('GMAIL_CLIENT_ID')
-  const gmailClientSecret = Deno.env.get('GMAIL_CLIENT_SECRET')
-
-  if (!gmailClientId || !gmailClientSecret) {
-    throw new Error('Gmail OAuth credentials not configured')
-  }
-
-  // Exchange refresh token for new access token
-  const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      client_id: gmailClientId,
-      client_secret: gmailClientSecret,
-      refresh_token: tokenData.refresh_token,
-      grant_type: 'refresh_token',
-    }),
-  })
-
-  if (!refreshResponse.ok) {
-    const errorText = await refreshResponse.text()
-    console.error('Token refresh failed:', errorText)
-    
-    // If refresh token is invalid, user needs to reconnect
-    if (refreshResponse.status === 400) {
-      throw new Error('Refresh token expired. Please reconnect Gmail.')
-    }
-    
-    throw new Error(`Token refresh failed: ${errorText}`)
-  }
-
-  const newTokens = await refreshResponse.json()
-
-  // Calculate new expiration time
-  const expiresAt = new Date()
-  expiresAt.setSeconds(expiresAt.getSeconds() + (newTokens.expires_in || 3600))
-
-  // Update tokens in database
-  const updateData: any = {
-    access_token: newTokens.access_token,
-    expires_at: expiresAt.toISOString(),
-    updated_at: new Date().toISOString(),
-  }
-
-  // If Google returned a new refresh token, update it
-  if (newTokens.refresh_token) {
-    updateData.refresh_token = newTokens.refresh_token
-  }
-
-  const { error: updateError } = await supabaseClient
-    .from('gmail_tokens')
-    .update(updateData)
-    .eq('user_id', userId)
-
-  if (updateError) {
-    throw new Error(`Failed to update tokens: ${updateError.message}`)
-  }
-
-  return {
-    access_token: newTokens.access_token,
-    expires_at: expiresAt,
-  }
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -305,34 +140,33 @@ serve(async (req) => {
       .from('gmail_tokens')
       .select('*')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (tokenError || !tokenData) {
       throw new Error('Gmail not connected')
     }
 
-    // Decrypt access token
-    let accessToken: string
+    // Decrypt the stored access token. A failure here is recoverable: an
+    // earlier version of this function wrote access tokens in plaintext, so
+    // some accounts hold a value this can't read. Refreshing rewrites it
+    // correctly, which beats making the user reconnect.
+    let accessToken: string | null = null
     try {
       accessToken = await decryptToken(tokenData.access_token)
-    } catch (error) {
-      throw new Error('Failed to decrypt Gmail token. Please reconnect Gmail.')
+    } catch {
+      console.warn('Stored access token could not be decrypted; refreshing instead.')
     }
 
-    // Check if token is expired or about to expire (within 5 minutes)
+    // Refresh if unreadable, expired, or expiring within 5 minutes.
     const expiresAt = new Date(tokenData.expires_at)
-    const now = new Date()
-    const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000)
+    const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000)
 
-    // Refresh if expired or expiring soon
-    if (expiresAt <= fiveMinutesFromNow) {
+    if (accessToken === null || expiresAt <= fiveMinutesFromNow) {
       try {
-        // Import refresh function (inline for Deno edge functions)
-        const refreshResponse = await refreshGmailToken(supabaseClient, user.id)
-        accessToken = refreshResponse.access_token
-        console.log(`Token refreshed. New expiration: ${refreshResponse.expires_at}`)
+        const refreshed = await refreshGmailToken(supabaseClient, user.id)
+        accessToken = refreshed.access_token
+        console.log(`Token refreshed. New expiration: ${refreshed.expires_at}`)
       } catch (refreshError: any) {
-        // If refresh fails, throw error asking user to reconnect
         throw new Error(
           `Gmail token expired and refresh failed: ${refreshError.message}. Please reconnect Gmail.`
         )

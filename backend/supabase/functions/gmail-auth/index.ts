@@ -1,67 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-// Encryption utilities (inline for Deno edge functions)
-const ALGORITHM = 'AES-GCM'
-const KEY_LENGTH = 256
-const IV_LENGTH = 12
-
-function getEncryptionKey(): string {
-  const key = Deno.env.get('ENCRYPTION_KEY')
-  if (!key) {
-    console.warn('ENCRYPTION_KEY not set, using default (NOT SECURE FOR PRODUCTION)')
-    return 'default-key-change-in-production-32-chars!!'
-  }
-  return key
-}
-
-async function deriveKey(password: string): Promise<CryptoKey> {
-  const encoder = new TextEncoder()
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits', 'deriveKey']
-  )
-
-  return crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: encoder.encode('gmail-token-salt'),
-      iterations: 100000,
-      hash: 'SHA-256',
-    },
-    keyMaterial,
-    {
-      name: ALGORITHM,
-      length: KEY_LENGTH,
-    },
-    false,
-    ['encrypt', 'decrypt']
-  )
-}
-
-async function encryptToken(token: string): Promise<string> {
-  try {
-    const key = await deriveKey(getEncryptionKey())
-    const encoder = new TextEncoder()
-    const data = encoder.encode(token)
-    const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH))
-    const encrypted = await crypto.subtle.encrypt(
-      { name: ALGORITHM, iv: iv },
-      key,
-      data
-    )
-    const combined = new Uint8Array(iv.length + encrypted.byteLength)
-    combined.set(iv)
-    combined.set(new Uint8Array(encrypted), iv.length)
-    return btoa(String.fromCharCode(...combined))
-  } catch (error) {
-    console.error('Encryption error:', error)
-    throw new Error('Failed to encrypt token')
-  }
-}
+import { encryptToken } from '../_shared/encryption.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
